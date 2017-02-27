@@ -1,21 +1,44 @@
+var page = new Vue({
+  el: 'body',
+  data: {
+    _DEBUG_: true,
+    _HOST_: 'eshop.jerei.com',
+    id: null,
+    page: 0,
+    pageSize: 10
+  },
+  created: function () {
+    //vue初始化完成后执行的函数
+    this.getUrl();
+  },
+  methods: {
+    //自定义的方法
+    getUrl: function () {
+      this.url = urlParas(window.location.href.split('#')[0]);
+      this._DEBUG_ = 'string' == typeof this.url.get('_debug') && (this.url.get('_debug') == 'true');
+      if(this._DEBUG_){
+          openDebug();
+          var _console = mui.extend({},console);
+          console.info = function(e){
+              debug.log(e);
+              _console.info(e);
+          };
+          console.warn = function(e){
+              debug.warn(e);
+              _console.warn(e);
+          };
+          console.error = function(e){
+              debug.error(e);
+              _console.error(e);
+          };
+      }
+    }
+  }
+});
 var tmpWidth = 750,
   windowWidth = window.screen.width;
 var scale = tmpWidth / windowWidth;
-/**
- * 页面数据命名空间
- * @type {{id: null, page: number, pageSize: number}}
- */
-var page = {
-  _DEBUG_: 0,
-  debug: null,
-  id: null,
-  page: 0,
-  pageSize: 10
-};
-page.url = urlParas(window.location.href.split('#')[0]);
-if (page._DEBUG_) {
-  page.debug = debug('jhht:');
-}
+
 /**
  * 异步json获取
  * @desc 封装mui.ajax,预留app验证接口
@@ -26,57 +49,53 @@ if (page._DEBUG_) {
  * @param {Function} [error] 错误回调
  */
 function getJson(url, param, success, error) {
-  var tryTimes = 1,
-    errorTimes = 0;
   loading.change(1);
-  //JSONP.get({
-  //    url: 'http://' + location.host + vars.root + url,
-  //    key: '_jsonp',
-  //    value: 'jsonp' + Math.floor(Math.random() * 10000),
-  //    data: {
-  //        goodsId: 5,
-  //        type: 'all',
-  //        page: 1,
-  //        pageSize: 10
-  //    },
-  //    success: function (data) {
-  //        console.info(JSON.stringify(data, null, 4));
-  //    },
-  //    error: function(errors) {
-  //        console.error(errors);
-  //    }
-  //});
-  mui.ajax({
-    type: 'POST',
-    url: vars.root + url,
-    data: param,
-    dataType: 'json',
-    success: function (data) {
-      //数据状态
-      /*if(!data.success){
-          //debug
-          console.warn('send:' + JSON.stringify(param) + '\nto:' + url + '\nreturn:\n' + JSON.stringify(data))
-          return mui.toast('连接服务器异常，请检查网络设置');
-      }*/
-      if (typeof success == 'function') {
-        success(data);
-      } else {
-        console.info('send:' + JSON.stringify(param) + '\nto:' + url + '\nreturn:\n' + JSON.stringify(data, null, 4));
-      }
-      loading.change(-1);
+  JSONP.get({
+    url: 'http://' + page._data._HOST_ + vars.root + url,
+    key: '_jsonp',
+    value: 'jsonp' + Math.floor(Math.random() * 10000),
+    data: {
+      goodsId: 5,
+      type: 'all',
+      page: 1,
+      pageSize: 10
     },
-    error: function (msg) {
-      errorTimes++;
-      if (errorTimes < tryTimes) {
-        loading.change(-1);
-        return getJson(url, param, success, error);
-      }
-      if (typeof error == 'function') {
-        error(msg);
-      } else {
-        console.error('send:' + JSON.stringify(param) + '\nto:' + url + '\nstatus:' + msg.status + '\nreturn:\n' + JSON.stringify(msg));
-      }
+    success: function (res) {
       loading.change(-1);
+      if ('function' == typeof success) {
+        success(res);
+      }
+      if (!page._data._DEBUG_) {
+        return;
+      }
+      /* eslint-disable no-alert, no-console */
+      console.group('----接口数据----');
+      console.info('send:' + JSON.stringify(param) + '\nto:' + url + '\nreturn:\n');
+      console.groupCollapsed('jsonStr');
+      console.log(JSON.stringify(res, null, 2));
+      console.groupEnd();
+      console.info(res);
+      console.groupEnd();
+      /* eslint-enable no-alert, no-console */
+    },
+    error: function (res) {
+      loading.change(-1);
+      if ('function' == typeof error) {
+        error(res);
+      }
+      if (!page._data._DEBUG_) {
+        return;
+      }
+      /* eslint-disable no-alert, no-console */
+      console.group('----接口数据----');
+      console.warn('send:' + JSON.stringify(param) + '\nto:' + url + '\nreturn:\n');
+      console.groupCollapsed('jsonStr');
+      console.log(JSON.stringify(res, null, 2));
+      console.groupEnd();
+      console.warn(res);
+      console.groupEnd();
+      /* eslint-enable no-alert, no-console */
+
     }
   });
 }
@@ -113,7 +132,7 @@ function errorImg(size) {
   Holder.run();
 }
 
-//瀑布流的错误图片替换
+// 瀑布流的错误图片替换
 function _errorImg(size) {
   var arr = size.split('x');
   for (var i = 0; i < arr.length; i++) {
@@ -134,13 +153,13 @@ function imgFormat(url, format, isZip, notForTpl) {
   } else {
     url = vars.root + '/upload/' + url + format;
   }
-  //直接返回url
+  // 直接返回url
   if (!!notForTpl && notForTpl) {
     return url;
   }
 
-  //todo:更好的外部方案不在这拼字符串
-  //拼接错误图片替换
+  // TODO:更好的外部方案不在这拼字符串
+  // 拼接错误图片替换
 
 
   var size = format.split('.')[1];
@@ -163,33 +182,6 @@ function imgFormat(url, format, isZip, notForTpl) {
 /**
  * 通用初始化代码
  */
-//ios返回强制刷新
-if (navigator.userAgent.match(/\(i[^;]+;( U;)? CPU.+Mac OS X/)) {
-  if (page.url.get('reload') == 'true' && page.url.url.indexOf('goods_list') == -1) {
-    page.url.set('reload', 'false');
-    location.replace(page.url.build());
-  }
-}
-
-$(function () {
-
-  $('body,.mui-scroll,.mui-bar-tab').on('tap.window', 'a', function () {
-    event.preventDefault();
-    return toNewPage($(this).attr('href'));
-  });
-  $('body').on('toggle', '.mui-switch', function (e) {
-    $(this).find('input[type=hidden]').val(e.detail.isActive ? 1 : 0);
-  });
-
-  page.parentDistibutor = page.url.get('parentDistibutor');
-
-  if (page.parentDistibutor && 'string' == typeof page.parentDistibutor) {
-    // console.log(page.parentDistibutor )
-    // local.set('parentDistibutor',fromUri(page.parentDistibutor));
-    setCookie('parentDistibutor', fromUri(page.parentDistibutor), 7);
-  }
-
-});
 
 function setCookie(c_name, value, expiredays) {
   var exdate = new Date();
@@ -197,7 +189,6 @@ function setCookie(c_name, value, expiredays) {
   document.cookie = c_name + '=' + escape(value) +
     ((expiredays == null) ? '' : ';expires=' + exdate.toGMTString()) + ';path=/';
 }
-
 //取回cookie
 function getCookie(c_name) {
   if (document.cookie.length > 0) {
@@ -223,10 +214,10 @@ function toNewPage(href, cantBack) {
   if (!href || href.indexOf('#') == 0 || href.indexOf('javascript') == 0) {
     return;
   }
-  if (href.indexOf('http') != 0) {
+  // if (href.indexOf('http') != 0) {
     //for APP
     // href = 'http://192.168.191.1:8080' + href;
-  }
+  // }
   var bottom = 0;
   cantBack = cantBack ? cantBack : false;
   if (cantBack) {
@@ -336,11 +327,11 @@ var loading = {
   },
   done: function () {
     mui('body').progressbar().hide();
-    $('body').off('touchstart.loading');
+    mui('body').off('touchstart.loading');
   },
   ing: function () {
     mui('body').progressbar().show();
-    $('body').on('touchstart.loading', function () {
+    mui('body').on('touchstart.loading', function () {
       mui.toast('数据载入中，客官等下嘛~');
     });
   }
@@ -376,28 +367,14 @@ mui.ready(function () {
           return false;
         }
       });
-      $('#footer a[data-id=' + curPage + ']').addClass('mui-active');
+      mui('#footer a[data-id=' + curPage + ']').addClass('mui-active');
     })(mui);
-    $('#footer').on('touchstart', 'a', function () {
+    mui('#footer').on('touchstart', 'a', function () {
       toNewPage(this.href);
     });
   }
-  if ($('.search_ipt').length > 0) {
-    //input搜索框输入效果
-    $('body').on('focus', '.search_ipt', function () {
-      $('.search_box').addClass('on');
-    }).on('blur', '.search_ipt', function () {
-      $('.search_box').addClass('on');
-      if ($.trim($(this).val()).length < 1) {
-        $('.search_box').removeClass('on');
-      }
-    });
-  }
-  if ($('#header .change').length > 0) {
-    $('.search_ipt').on('tap', function () {
-      toNewPage(vars.clientRoot + '/ec/goods/goods_search.html');
-    });
-  }
+
+
 });
 //
 if (window.localStorage) {
@@ -521,7 +498,7 @@ function checkLogin(toLogin, callback) {
   }
   //判断是否有callback
   if ('function' != typeof callback) {
-    callback = $.noop;
+    callback = mui.noop;
   }
   var curUrl = location.href;
   //未登录过
