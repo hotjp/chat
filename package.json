@@ -1,0 +1,7 @@
+{
+  "name": "loveChat",
+  "version": "0.1.0",
+  "devDependencies": {
+    "less": "^2.7.2"
+  }
+}
